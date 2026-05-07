@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>The Stack</title>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --surface3: #272727;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0ede8;
+    --muted: #888;
+    --accent: #c8a96e;
+    --accent2: #a07840;
+    --danger: #c0392b;
+    --success: #27ae60;
+    --progress-low: #c0392b;
+    --progress-mid: #e67e22;
+    --progress-high: #27ae60;
+    --font-serif: 'Georgia', 'Times New Roman', serif;
+    --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --font-mono: 'Courier New', monospace;
+    --radius: 8px;
+    --radius-lg: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ── HEADER ── */
+  .app-header {
+    padding: 20px 20px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .app-title {
+    font-family: var(--font-serif);
+    font-size: 26px;
+    font-weight: normal;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  .app-subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .header-actions { display: flex; gap: 10px; }
+  .icon-btn {
+    width: 38px; height: 38px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    border-radius: var(--radius);
+    color: var(--muted);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .icon-btn:active { background: var(--surface3); color: var(--text); }
+
+  /* ── STACK LIST ── */
+  .stack-list {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state .big-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+  .empty-state p { font-size: 14px; line-height: 1.7; }
+
+  .article-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .article-card:active { background: var(--surface2); border-color: var(--border2); }
+
+  .card-progress-bar {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    transition: width 0.4s ease;
+    border-radius: 0 3px 0 0;
+  }
+
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .card-title {
+    font-family: var(--font-serif);
+    font-size: 17px;
+    font-weight: normal;
+    color: var(--text);
+    line-height: 1.4;
+    flex: 1;
+  }
+  .card-meta { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .progress-badge {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.03em;
+  }
+  .progress-badge.low { background: rgba(192,57,43,0.15); color: #e74c3c; }
+  .progress-badge.mid { background: rgba(230,126,34,0.15); color: #e67e22; }
+  .progress-badge.high { background: rgba(39,174,96,0.15); color: #2ecc71; }
+  .progress-badge.done { background: rgba(100,200,130,0.15); color: #2ecc71; }
+  .card-domain { font-size: 12px; color: var(--muted); }
+  .card-actions {
+    display: flex; gap: 8px; margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .card-btn {
+    flex: 1;
+    padding: 7px 0;
+    border: 1px solid var(--border2);
+    background: transparent;
+    border-radius: var(--radius);
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    transition: all 0.15s;
+  }
+  .card-btn:active { background: var(--surface3); color: var(--text); }
+  .card-btn.danger:active { background: rgba(192,57,43,0.2); color: #e74c3c; border-color: rgba(192,57,43,0.4); }
+
+  /* ── ADD ARTICLE ── */
+  .add-sheet {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border2);
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px 40px;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 100;
+  }
+  .add-sheet.open { transform: translateY(0); }
+  .sheet-handle {
+    width: 36px; height: 4px;
+    background: var(--border2);
+    border-radius: 2px;
+    margin: 0 auto 20px;
+  }
+  .sheet-title {
+    font-size: 18px;
+    font-family: var(--font-serif);
+    color: var(--accent);
+    margin-bottom: 16px;
+    font-weight: normal;
+  }
+  .input-group { margin-bottom: 14px; }
+  .input-group label { font-size: 12px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; display: block; margin-bottom: 6px; }
+  .input-group input, .input-group textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 15px;
+    padding: 12px;
+    outline: none;
+    font-family: var(--font-sans);
+    transition: border-color 0.15s;
+  }
+  .input-group input:focus, .input-group textarea:focus { border-color: var(--accent); }
+  .input-group textarea { resize: none; height: 60px; }
+  .btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: #0d0d0d;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: opacity 0.15s;
+  }
+  .btn-primary:active { opacity: 0.8; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 99;
+    display: none;
+  }
+  .overlay.active { display: block; }
+
+  /* ── READER ── */
+  #reader-screen {
+    background: var(--bg);
+  }
+  .reader-header {
+    padding: 16px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+  .reader-title-wrap { flex: 1; min-width: 0; }
+  .reader-title {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: normal;
+  }
+  .reader-domain { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  .reader-progress-wrap {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--surface);
+  }
+  .progress-bar-outer {
+    flex: 1;
+    height: 5px;
+    background: var(--surface3);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+  .progress-pct {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  .reader-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 20px 120px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .reader-body h1, .reader-body h2, .reader-body h3 {
+    font-family: var(--font-serif);
+    font-weight: normal;
+    color: var(--text);
+    margin: 1.5em 0 0.6em;
+    line-height: 1.35;
+  }
+  .reader-body h1 { font-size: 24px; }
+  .reader-body h2 { font-size: 20px; }
+  .reader-body h3 { font-size: 17px; }
+  .reader-body p { margin-bottom: 1.1em; font-size: 17px; line-height: 1.75; color: #d8d4cc; }
+  .reader-body a { color: var(--accent); text-decoration: none; }
+  .reader-body img { max-width: 100%; border-radius: var(--radius); margin: 12px 0; }
+  .reader-body blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 16px;
+    margin: 1.2em 0;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .reader-toolbar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding: 12px 16px 28px;
+    gap: 10px;
+  }
+  .reader-toolbar .icon-btn {
+    flex: 1;
+    width: auto;
+    height: 44px;
+    border-radius: var(--radius);
+  }
+  .reader-toolbar .icon-btn.active { color: var(--accent); border-color: var(--accent); }
+
+  /* ── LOADING / ERROR STATES ── */
+  .fetch-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .fetch-state .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .fetch-state p { font-size: 14px; }
+
+  /* ── QUOTES PANEL ── */
+  .panel {
+    position: fixed;
+    inset: 0;
+    background: var(--surface);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+  }
+  .panel.open { transform: translateX(0); }
+  .panel-header {
+    padding: 20px 16px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .panel-title { font-family: var(--font-serif); font-size: 20px; font-weight: normal; color: var(--accent); flex: 1; }
+  .panel-body { flex: 1; overflow-y: auto; padding: 16px; }
+  .quote-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 12px;
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--text);
+    font-style: italic;
+    position: relative;
+  }
+  .quote-delete {
+    position: absolute; top: 8px; right: 8px;
+    background: none; border: none;
+    color: var(--muted); font-size: 16px;
+    cursor: pointer; padding: 4px;
+  }
+  .quote-source { font-size: 11px; color: var(--muted); margin-top: 8px; font-style: normal; letter-spacing: 0.05em; }
+  .quote-select-hint {
+    background: rgba(200,169,110,0.1);
+    border: 1px solid rgba(200,169,110,0.3);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--accent);
+    text-align: center;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .no-quotes { color: var(--muted); font-size: 14px; text-align: center; padding: 40px 0; }
+
+  /* ── DICTIONARY PANEL ── */
+  .dict-result {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-top: 12px;
+  }
+  .dict-word { font-size: 22px; font-family: var(--font-serif); color: var(--text); }
+  .dict-phonetic { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .dict-pos { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 14px 0 6px; font-weight: 600; }
+  .dict-def { font-size: 15px; color: #d8d4cc; line-height: 1.6; margin-bottom: 8px; }
+  .dict-example { font-size: 13px; color: var(--muted); font-style: italic; padding-left: 12px; border-left: 2px solid var(--border2); }
+
+  .panel-search {
+    display: flex; gap: 8px; padding: 16px 16px 0;
+  }
+  .panel-search input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 15px;
+    padding: 10px 14px;
+    outline: none;
+  }
+  .panel-search input:focus { border-color: var(--accent); }
+  .panel-search button {
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius);
+    color: #0d0d0d;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 0 16px;
+    cursor: pointer;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 10px 20px;
+    font-size: 13px;
+    color: var(--text);
+    opacity: 0;
+    transition: all 0.25s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ HOME SCREEN ═══════════════════════════════ -->
+<div id="home-screen" class="screen active">
+  <div class="app-header">
+    <div>
+      <div class="app-title">The Stack</div>
+      <div class="app-subtitle">Your reading list</div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="add-btn" title="Add article">＋</button>
+    </div>
+  </div>
+
+  <div class="stack-list" id="stack-list">
+    <div class="empty-state">
+      <div class="big-icon">📚</div>
+      <p>Your stack is empty.<br>Tap <strong>＋</strong> to add an article.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ READER SCREEN ═══════════════════════════════ -->
+<div id="reader-screen" class="screen">
+  <div class="reader-header">
+    <button class="icon-btn" id="back-btn" title="Back">←</button>
+    <div class="reader-title-wrap">
+      <div class="reader-title" id="reader-title">Article</div>
+      <div class="reader-domain" id="reader-domain"></div>
+    </div>
+    <button class="icon-btn" id="share-btn" title="Share">⬆</button>
+  </div>
+  <div class="reader-progress-wrap">
+    <div class="progress-bar-outer">
+      <div class="progress-bar-inner" id="reader-progress-bar" style="width:0%"></div>
+    </div>
+    <div class="progress-pct" id="reader-progress-pct">0%</div>
+  </div>
+  <div class="reader-body" id="reader-body">
+    <div class="fetch-state">
+      <div class="spinner"></div>
+      <p>Fetching article…</p>
+    </div>
+  </div>
+  <div class="reader-toolbar">
+    <button class="icon-btn" id="quote-btn" title="Quotes">❝</button>
+    <button class="icon-btn" id="dict-btn" title="Dictionary">A</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ ADD SHEET ═══════════════════════════════ -->
+<div class="overlay" id="overlay"></div>
+<div class="add-sheet" id="add-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Add to stack</div>
+  <div class="input-group">
+    <label>Article URL</label>
+    <input type="url" id="url-input" placeholder="https://..." />
+  </div>
+  <div class="input-group">
+    <label>Notes (optional)</label>
+    <textarea id="notes-input" placeholder="Why you're reading this…"></textarea>
+  </div>
+  <div class="input-group">
+    <label>Paste text (fallback if fetch fails)</label>
+    <textarea id="paste-input" placeholder="Paste article text here as a backup…" style="height:70px"></textarea>
+  </div>
+  <button class="btn-primary" id="fetch-btn">Fetch & Add</button>
+</div>
+
+<!-- ═══════════════════════════════ QUOTES PANEL ═══════════════════════════════ -->
+<div class="panel" id="quotes-panel">
+  <div class="panel-header">
+    <button class="icon-btn" id="quotes-close">✕</button>
+    <div class="panel-title">Saved Quotes</div>
+  </div>
+  <div class="panel-body" id="quotes-body"></div>
+</div>
+
+<!-- ═══════════════════════════════ DICT PANEL ═══════════════════════════════ -->
+<div class="panel" id="dict-panel">
+  <div class="panel-header">
+    <button class="icon-btn" id="dict-close">✕</button>
+    <div class="panel-title">Dictionary</div>
+  </div>
+  <div class="panel-search">
+    <input type="text" id="dict-input" placeholder="Look up a word…" />
+    <button id="dict-search-btn">Go</button>
+  </div>
+  <div class="panel-body" id="dict-body"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════ STATE ═══════════════════════════
+let articles = JSON.parse(localStorage.getItem('thestack_articles') || '[]');
+let currentArticleId = null;
+
+function save() {
+  localStorage.setItem('thestack_articles', JSON.stringify(articles));
+}
+
+function getArticle(id) {
+  return articles.find(a => a.id === id);
+}
+
+function getDomain(url) {
+  try { return new URL(url).hostname.replace('www.', ''); } catch { return url; }
+}
+
+function progressClass(pct) {
+  if (pct >= 80) return 'done';
+  if (pct >= 50) return 'high';
+  if (pct >= 20) return 'mid';
+  return 'low';
+}
+
+function progressLabel(pct) {
+  if (pct === 0) return '0%';
+  return pct + '%';
+}
+
+// ═══════════════════════════ TOAST ═══════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ═══════════════════════════ RENDER HOME ═══════════════════════════
+function renderHome() {
+  const list = document.getElementById('stack-list');
+  if (articles.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="big-icon">📚</div><p>Your stack is empty.<br>Tap <strong>＋</strong> to add an article.</p></div>`;
+    return;
+  }
+  list.innerHTML = articles.map(a => {
+    const pct = a.progress || 0;
+    const cls = progressClass(pct);
+    return `
+    <div class="article-card" data-id="${a.id}">
+      <div class="card-top">
+        <div class="card-title">${a.title}</div>
+      </div>
+      <div class="card-meta">
+        <span class="progress-badge ${cls}">${progressLabel(pct)}</span>
+        <span class="card-domain">${getDomain(a.url)}</span>
+      </div>
+      <div class="card-actions" onclick="event.stopPropagation()">
+        <button class="card-btn" onclick="openArticle('${a.id}')">📖 Read</button>
+        <button class="card-btn" onclick="shareArticle('${a.id}')">⬆ Share</button>
+        <button class="card-btn danger" onclick="deleteArticle('${a.id}')">✕ Remove</button>
+      </div>
+      <div class="card-progress-bar" style="width:${pct}%"></div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════ ADD SHEET ═══════════════════════════
+document.getElementById('add-btn').onclick = () => {
+  document.getElementById('add-sheet').classList.add('open');
+  document.getElementById('overlay').classList.add('active');
+  document.getElementById('url-input').focus();
+};
+document.getElementById('overlay').onclick = closeSheet;
+
+function closeSheet() {
+  document.getElementById('add-sheet').classList.remove('open');
+  document.getElementById('overlay').classList.remove('active');
+}
+
+document.getElementById('fetch-btn').onclick = async () => {
+  const url = document.getElementById('url-input').value.trim();
+  const pasteText = document.getElementById('paste-input').value.trim();
+  if (!url) { showToast('Enter a URL'); return; }
+  const btn = document.getElementById('fetch-btn');
+  btn.disabled = true;
+  btn.textContent = 'Fetching…';
+
+  let title = 'Untitled';
+  let content = '';
+
+  try {
+    const result = await fetchArticle(url);
+    title = result.title;
+    content = result.content;
+  } catch(e) {
+    if (pasteText) {
+      // Use pasted text as fallback
+      title = hintTitle(url.split('/').filter(Boolean).pop() || 'Article');
+      content = pasteText.split('\n').map(p => p.trim() ? `<p>${p}</p>` : '').join('');
+      showToast('Fetch failed — using pasted text');
+    } else {
+      showToast('Could not fetch — try pasting the text');
+      btn.disabled = false;
+      btn.textContent = 'Fetch & Add';
+      return;
+    }
+  }
+
+  const notes = document.getElementById('notes-input').value.trim();
+  const article = {
+    id: Date.now().toString(),
+    url,
+    title,
+    content,
+    notes,
+    progress: 0,
+    quotes: [],
+    addedAt: Date.now()
+  };
+  articles.unshift(article);
+  save();
+  renderHome();
+  closeSheet();
+  document.getElementById('url-input').value = '';
+  document.getElementById('notes-input').value = '';
+  document.getElementById('paste-input').value = '';
+  showToast('Added to stack ✓');
+  btn.disabled = false;
+  btn.textContent = 'Fetch & Add';
+};
+
+// ═══════════════════════════ FETCH ARTICLE ═══════════════════════════
+async function fetchArticle(url) {
+  const proxies = [
+    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  ];
+
+  let html = null;
+
+  // Try allorigins first (returns JSON with .contents)
+  try {
+    const res = await fetch(proxies[0], { signal: AbortSignal.timeout(8000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.contents) html = data.contents;
+    }
+  } catch(e) { /* try next */ }
+
+  // Try corsproxy (returns raw HTML)
+  if (!html) {
+    try {
+      const res = await fetch(proxies[1], { signal: AbortSignal.timeout(8000) });
+      if (res.ok) html = await res.text();
+    } catch(e) { /* give up */ }
+  }
+
+  if (!html) throw new Error('All proxies failed');
+
+  return parseArticleHTML(html, url);
+}
+
+function parseArticleHTML(html, url) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // Extract title hint
+  const ogTitle = doc.querySelector('meta[property="og:title"]')?.getAttribute('content');
+  const metaTitle = doc.querySelector('title')?.textContent;
+  const h1 = doc.querySelector('h1')?.textContent;
+  const rawTitle = (ogTitle || h1 || metaTitle || 'Untitled').trim();
+  const title = hintTitle(rawTitle);
+
+  // Remove clutter
+  ['script','style','nav','header','footer','aside','form','noscript','iframe','button'].forEach(tag => {
+    doc.querySelectorAll(tag).forEach(el => el.remove());
+  });
+
+  // Try to find main content
+  const bodyEl = doc.querySelector('article')
+    || doc.querySelector('[role="main"]')
+    || doc.querySelector('main')
+    || doc.querySelector('.post-content')
+    || doc.querySelector('.article-body')
+    || doc.querySelector('.entry-content')
+    || doc.body;
+
+  const content = bodyEl ? bodyEl.innerHTML : '<p>Could not extract content.</p>';
+  return { title, content };
+}
+
+function hintTitle(raw) {
+  // Truncate to ~6 words and clean up site name suffixes
+  const cleaned = raw
+    .replace(/\s*[\|\-–—]\s*.{1,40}$/, '') // remove " | Site Name" suffix
+    .replace(/\s+/g, ' ')
+    .trim();
+  const words = cleaned.split(' ');
+  if (words.length <= 7) return cleaned;
+  return words.slice(0, 6).join(' ') + '…';
+}
+
+// ═══════════════════════════ OPEN ARTICLE ═══════════════════════════
+function openArticle(id) {
+  currentArticleId = id;
+  const a = getArticle(id);
+  if (!a) return;
+
+  document.getElementById('reader-title').textContent = a.title;
+  document.getElementById('reader-domain').textContent = getDomain(a.url);
+  document.getElementById('reader-body').innerHTML = a.content || '<p>No content loaded.</p>';
+  document.getElementById('reader-progress-pct').textContent = (a.progress || 0) + '%';
+  document.getElementById('reader-progress-bar').style.width = (a.progress || 0) + '%';
+
+  showScreen('reader-screen');
+
+  // Restore scroll position
+  const body = document.getElementById('reader-body');
+  setTimeout(() => {
+    if (a.scrollTop) body.scrollTop = a.scrollTop;
+    updateProgress();
+  }, 100);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ═══════════════════════════ PROGRESS TRACKING ═══════════════════════════
+document.getElementById('reader-body').addEventListener('scroll', updateProgress);
+
+function updateProgress() {
+  const body = document.getElementById('reader-body');
+  const scrollTop = body.scrollTop;
+  const scrollHeight = body.scrollHeight - body.clientHeight;
+  if (scrollHeight <= 0) return;
+
+  const raw = scrollTop / scrollHeight;
+  // Map to 1%–100%, so even opening gives 1%
+  const pct = Math.max(1, Math.min(100, Math.round(raw * 100)));
+
+  document.getElementById('reader-progress-bar').style.width = pct + '%';
+  document.getElementById('reader-progress-pct').textContent = pct + '%';
+
+  // Save
+  const a = getArticle(currentArticleId);
+  if (a) {
+    a.progress = pct;
+    a.scrollTop = scrollTop;
+    save();
+  }
+}
+
+// ═══════════════════════════ BACK ═══════════════════════════
+document.getElementById('back-btn').onclick = () => {
+  showScreen('home-screen');
+  renderHome();
+};
+
+// ═══════════════════════════ SHARE ═══════════════════════════
+document.getElementById('share-btn').onclick = () => {
+  const a = getArticle(currentArticleId);
+  if (!a) return;
+  shareArticle(a.id);
+};
+
+function shareArticle(id) {
+  const a = getArticle(id);
+  if (!a) return;
+  if (navigator.share) {
+    navigator.share({ title: a.title, url: a.url });
+  } else {
+    navigator.clipboard.writeText(a.url).then(() => showToast('Link copied'));
+  }
+}
+
+// ═══════════════════════════ DELETE ═══════════════════════════
+function deleteArticle(id) {
+  articles = articles.filter(a => a.id !== id);
+  save();
+  renderHome();
+  showToast('Removed from stack');
+}
+
+// ═══════════════════════════ QUOTES ═══════════════════════════
+document.getElementById('quote-btn').onclick = openQuotes;
+document.getElementById('quotes-close').onclick = () => document.getElementById('quotes-panel').classList.remove('open');
+
+function openQuotes() {
+  renderQuotes();
+  document.getElementById('quotes-panel').classList.add('open');
+}
+
+function renderQuotes() {
+  const a = getArticle(currentArticleId);
+  if (!a) return;
+  const body = document.getElementById('quotes-body');
+  body.innerHTML = `<div class="quote-select-hint">Select text in the article, then tap the ❝ button to save a quote.</div>`;
+  if (!a.quotes || a.quotes.length === 0) {
+    body.innerHTML += `<div class="no-quotes">No quotes saved yet.</div>`;
+    return;
+  }
+  body.innerHTML += a.quotes.map((q, i) => `
+    <div class="quote-item">
+      <button class="quote-delete" onclick="deleteQuote(${i})">✕</button>
+      ${q.text}
+      <div class="quote-source">${getDomain(a.url)}</div>
+    </div>`).join('');
+}
+
+function saveSelectedQuote() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) { showToast('Select text first'); return; }
+  const text = sel.toString().trim();
+  if (!text || text.length < 5) { showToast('Select more text'); return; }
+  const a = getArticle(currentArticleId);
+  if (!a) return;
+  if (!a.quotes) a.quotes = [];
+  a.quotes.push({ text, savedAt: Date.now() });
+  save();
+  sel.removeAllRanges();
+  showToast('Quote saved ✓');
+  if (document.getElementById('quotes-panel').classList.contains('open')) renderQuotes();
+}
+
+function deleteQuote(i) {
+  const a = getArticle(currentArticleId);
+  if (!a) return;
+  a.quotes.splice(i, 1);
+  save();
+  renderQuotes();
+}
+
+// Long press or selection to save quote
+document.getElementById('reader-body').addEventListener('mouseup', () => {
+  if (window.getSelection()?.toString().trim().length > 5) {
+    // Show floating hint — just a toast nudge
+  }
+});
+
+// Override quote-btn to handle save-or-open
+document.getElementById('quote-btn').onclick = () => {
+  const sel = window.getSelection();
+  if (sel && !sel.isCollapsed && sel.toString().trim().length > 5) {
+    saveSelectedQuote();
+  } else {
+    openQuotes();
+  }
+};
+
+// ═══════════════════════════ DICTIONARY ═══════════════════════════
+document.getElementById('dict-btn').onclick = () => {
+  const sel = window.getSelection()?.toString().trim();
+  if (sel && /^\w+$/.test(sel)) {
+    document.getElementById('dict-input').value = sel;
+    document.getElementById('dict-panel').classList.add('open');
+    lookupWord(sel);
+  } else {
+    document.getElementById('dict-panel').classList.add('open');
+  }
+};
+document.getElementById('dict-close').onclick = () => document.getElementById('dict-panel').classList.remove('open');
+document.getElementById('dict-search-btn').onclick = () => {
+  const w = document.getElementById('dict-input').value.trim();
+  if (w) lookupWord(w);
+};
+document.getElementById('dict-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const w = document.getElementById('dict-input').value.trim();
+    if (w) lookupWord(w);
+  }
+});
+
+async function lookupWord(word) {
+  const body = document.getElementById('dict-body');
+  body.innerHTML = `<div class="fetch-state"><div class="spinner"></div><p>Looking up <em>${word}</em>…</p></div>`;
+  try {
+    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+    if (!res.ok) throw new Error('not found');
+    const data = await res.json();
+    const entry = data[0];
+    const phonetic = entry.phonetics?.find(p => p.text)?.text || '';
+    let html = `<div class="dict-result"><div class="dict-word">${entry.word}</div>`;
+    if (phonetic) html += `<div class="dict-phonetic">${phonetic}</div>`;
+    entry.meanings?.slice(0, 3).forEach(m => {
+      html += `<div class="dict-pos">${m.partOfSpeech}</div>`;
+      m.definitions?.slice(0, 2).forEach(d => {
+        html += `<div class="dict-def">${d.definition}</div>`;
+        if (d.example) html += `<div class="dict-example">"${d.example}"</div>`;
+      });
+    });
+    html += '</div>';
+    body.innerHTML = html;
+  } catch {
+    body.innerHTML = `<div class="fetch-state"><p>No definition found for <em>${word}</em>.</p></div>`;
+  }
+}
+
+// ═══════════════════════════ INIT ═══════════════════════════
+try {
+  renderHome();
+} catch(e) {
+  document.getElementById('stack-list').innerHTML = `<div class="empty-state"><p style="color:#e74c3c">Something went wrong: ${e.message}</p></div>`;
+}
+</script>
+</body>
+</html>
